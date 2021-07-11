@@ -8,32 +8,38 @@
 
 #include <xtensor-blas/xlinalg.hpp>
 #include <xtensor/xarray.hpp>
+#include "xtensor/xtensor_forward.hpp"
 
 #include "xtensor/xbuilder.hpp"
 
 #include "Traversable.hpp"
 #include "Vertex.hpp"
-#include "xtensor/xtensor_forward.hpp"
 
 namespace pdl
 {
 template <typename T>
 concept TensorData = std::is_arithmetic<T>::value;
 
-class Module;
-
-template <TensorData T> class Tensor : public Traversable
+template <TensorData T> class Tensor : public std::enable_shared_from_this<Tensor<T>>
 {
 public:
     Tensor(xt::xarray<T> data);
-    Tensor(xt::xarray<T> data, std::shared_ptr<Vertex> vertexA);
-    Tensor(xt::xarray<T> data, const Tensor<T> &a, const Tensor<T> &b);
+    Tensor(xt::xarray<T> data, Tensor<T> &a);
+    Tensor(xt::xarray<T> data, Tensor<T> &a, Tensor<T> &b);
+
+    ~Tensor()
+    {
+        std::cout << "Tensor deleted\n";
+    }
 
     [[nodiscard]] const std::string toString() const;
     [[nodiscard]] const xt::xarray<T> &data() const;
     [[nodiscard]] const xt::xarray<T> &gradient() const;
     [[nodiscard]] xt::xarray<T> &gradient();
-    [[nodiscard]] Vertex &getVertex() const;
+    [[nodiscard]] const std::function<xt::xarray<T>(Tensor<T> &)> *gradientFunction() const;
+    [[nodiscard]] std::shared_ptr<Tensor<T>> getSharedPointer();
+
+    void setGradientFunction(std::function<xt::xarray<T>(Tensor<T> &)> const *gradientFunction);
 
     void backward();
 
@@ -43,19 +49,29 @@ public:
     }
 
     template <TensorData U>
-    friend Tensor<U> operator+ (Tensor<U> &a, Tensor<U> &b);
+    friend std::shared_ptr<Tensor<U>> operator+(std::shared_ptr<Tensor<U>> a, std::shared_ptr<Tensor<U>> b);
 
     template <TensorData U>
-    friend Tensor<U> operator* (Tensor<U> &a, Tensor<U> &b);
+    friend std::shared_ptr<Tensor<U>> operator*(std::shared_ptr<Tensor<U>> a, std::shared_ptr<Tensor<U>> b);
+
+    std::vector<std::shared_ptr<Tensor<T>>> m_incoming;
+    std::vector<std::shared_ptr<Tensor<T>>> m_outgoing;
 
 private:
     xt::xarray<T> m_data;
     xt::xarray<T> m_gradient;
-    std::shared_ptr<Vertex> m_vertex;
-    std::function<void(Tensor<T> &)> *m_function = nullptr;
+
+    std::function<xt::xarray<T>(Tensor<T> &)> const *m_gradientFunction = nullptr;
+
+    bool m_isLeaf;
 
     void backward(const xt::xarray<T> &gradientAccumulated);
 };
+
+template <TensorData T> static std::shared_ptr<Tensor<T>> tensor(xt::xarray<T> data)
+{
+    return std::shared_ptr<Tensor<T>>(new Tensor<T>(std::move(data)));
+}
 } // namespace pdl
 
 #endif // __TENSOR_H__
