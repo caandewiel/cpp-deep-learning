@@ -1,0 +1,9 @@
+[submodule "extern/xtensor"]
+	path = extern/xtensor
+	url = https://github.com/xtensor-stack/xtensor.git
+[submodule "extern/xtl"]
+	path = extern/xtl
+	url = https://github.com/xtensor-stack/xtl.git
+[submodule "extern/xtensor-blas"]
+	path = extern/xtensor-blas
+	url = https://github.com/xtensor-stack/xtensor-blas.git
